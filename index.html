@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loan Calculator</title>
+<style>
+  :root { --bg:#f3f6fb; --card:#fff; --text:#1c2733; --muted:#5f6b7a; --accent:#1f6feb; --border:#d9e0ea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#10151c; --card:#1a222c; --text:#e6edf3; --muted:#8b98a8; --accent:#4c8dff; --border:#2c3744; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); padding:16px; }
+  main { max-width:760px; margin:24px auto; }
+  h1 { margin:0 0 4px; }
+  p.sub { margin:0 0 20px; color:var(--muted); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:6px; }
+  input { width:100%; padding:10px; font-size:1rem; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); }
+  .results { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .stat { padding:14px; border-radius:10px; background:var(--bg); }
+  .stat span { display:block; font-size:.8rem; color:var(--muted); }
+  .stat strong { font-size:1.4rem; }
+  .stat.main strong { color:var(--accent); }
+  .err { color:#d33; min-height:1.2em; margin-top:10px; font-size:.9rem; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th,td { padding:8px; text-align:right; border-bottom:1px solid var(--border); }
+  th:first-child, td:first-child { text-align:left; }
+  .scroll { max-height:360px; overflow:auto; }
+  th { position:sticky; top:0; background:var(--card); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Loan Calculator</h1>
+  <p class="sub">Estimate your monthly payment, total interest and amortization schedule.</p>
+
+  <form class="card" id="form" novalidate>
+    <div class="grid">
+      <div><label for="amount">Loan amount</label><input id="amount" type="number" min="1" step="any" value="250000"></div>
+      <div><label for="rate">Annual interest rate (%)</label><input id="rate" type="number" min="0" step="any" value="5.5"></div>
+      <div><label for="term">Term (years)</label><input id="term" type="number" min="0.1" step="any" value="25"></div>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+
+  <section class="card">
+    <div class="results">
+      <div class="stat main"><span>Monthly payment</span><strong id="monthly">–</strong></div>
+      <div class="stat"><span>Total interest</span><strong id="interest">–</strong></div>
+      <div class="stat"><span>Total repaid</span><strong id="total">–</strong></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin-top:0">Amortization schedule</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Month</th><th>Payment</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString(undefined, { style:'currency', currency:'USD' });
+
+function calculate() {
+  const P = parseFloat($('amount').value);
+  const rate = parseFloat($('rate').value);
+  const years = parseFloat($('term').value);
+  const err = $('err');
+
+  if (!(P > 0) || !(rate >= 0) || !(years > 0)) {
+    err.textContent = 'Enter a positive amount and term, and a non-negative rate.';
+    ['monthly','interest','total'].forEach(i => $(i).textContent = '–');
+    $('rows').innerHTML = '';
+    return;
+  }
+  err.textContent = '';
+
+  const n = Math.round(years * 12);
+  const r = rate / 100 / 12;
+  const pay = r === 0 ? P / n : P * r / (1 - Math.pow(1 + r, -n));
+  const total = pay * n;
+
+  $('monthly').textContent = fmt(pay);
+  $('interest').textContent = fmt(total - P);
+  $('total').textContent = fmt(total);
+
+  let bal = P, html = '';
+  for (let m = 1; m <= n; m++) {
+    const int = bal * r;
+    const prin = pay - int;
+    bal = Math.max(0, bal - prin);
+    html += `<tr><td>${m}</td><td>${fmt(pay)}</td><td>${fmt(prin)}</td><td>${fmt(int)}</td><td>${fmt(bal)}</td></tr>`;
+  }
+  $('rows').innerHTML = html;
+}
+
+$('form').addEventListener('input', calculate);
+$('form').addEventListener('submit', e => e.preventDefault());
+calculate();
+</script>
+</body>
+</html>
